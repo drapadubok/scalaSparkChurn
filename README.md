@@ -71,14 +71,25 @@ aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 
 
 3) To package common config, see link for exact configurations
+
 time aws s3 cp --region eu-west-1 myConfig.json s3://dimaspark
+
+
 4) To package step, see see link for exact step configuration
+
 time aws s3 cp --region eu-west-1 myStep.json s3://dimaspark
+
+
 5) To submit the whole thing at once with step and config jsons:
+
 aws emr create-cluster --name Churner --release-label emr-4.3.0 \
+
 --instance-type m3.xlarge --instance-count 3 --applications Name=Spark \
+
 --use-default-roles --ec2-attributes KeyName=EC2_KEY_NAME \
+
 --log-uri "s3://dimaspark/logs/" \
+
 --steps "s3://dimaspark/myStep.json"
 
 
