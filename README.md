@@ -45,61 +45,55 @@ I used a few files I put to S3. In case you want to upload them via CLI, first a
 
 `time aws s3 cp --region eu-west-1 --recursive . DUMMYBUCKET`
 
+# To submit an app:
 
-To submit an app:
+Assuming we are done with coding and want to throw this at EMR. First we need to create a .jar file. From your project folder run, it will create a jar and tell you the path to it:
 
-First put your jar to s3:
+`sbt package`
 
-time aws s3 cp --region eu-west-1 PATH_TO_JAR S3_BUCKET
+I've read that there might be dependency problems, that sbt-assembly plugin may be used to create uber jar etc., but this is a toy problem and here I didn't run into any trouble. 
 
-Submit to local:
+Let's test that it works by submit to local:
 
-spark-submit --class "churn.ChurnData" --master "local[4]" PATH_TO_JAR
+`spark-submit --class "churn.ChurnData" --master "local[4]" myApp.jar`
 
-Submit to EMR:
+It does, so now I put my jar to S3:
 
+`time aws s3 cp --region eu-west-1 myApp.jar DUMMYBUCKET`
 
-1) As a step:
+# Submitting to EMR
 
-aws emr add-steps --cluster-id "j-xxx" --steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,PATH_TO_JAR_ON_S3],ActionOnFailure=CONTINUE"
+I've found multiple ways to achieve this, here are a few that worked for me.
 
+### 1) As a step, assuming cluster is running:
 
-2) Create cluster and submit, terminate on finish:
+`aws emr add-steps --cluster-id "J-12398213" --steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,s3://DUMMYBUCKET/myApp.jar],ActionOnFailure=CONTINUE"`
 
-aws emr create-cluster --name Churner --release-label emr-4.3.0 \
+You can check the AWS documentation to get better idea what this does, but in general, you specify what type of step it is (Spark), where is the jar and which class to use, some technical specs for executors (still trying to figure out optimal) and what to do if jos fails.
 
+### 2) Create cluster and submit, terminate on finish:
+
+```aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 --instance-type m3.xlarge --instance-count 3 --applications Name=Spark  \
+--use-default-roles --ec2-attributes KeyName=DUMMYKEY \
+--log-uri DUMMYBUCKET \
+--steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,s3://DUMMYBUCKET/myApp.jar]" \
+--auto-terminate```
 
---use-default-roles --ec2-attributes KeyName=EC2_KEY_NAME \
+Here the cluster creation is just combined with step.
 
---log-uri S3_bucket \
+### 3) Package common configuration to reduce clutter. We put the technicalities to myConfig.json and use it instead of specifying all the info about memory reqs and cores per executor. Also package step into json, together with config. The myStep.json contains all that stuff from --steps parameter.
 
---steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,PATH_TO_JAR_ON_S3]" \
+`time aws s3 cp --region eu-west-1 myConfig.json DUMMYBUCKET`
+`time aws s3 cp --region eu-west-1 myStep.json DUMMYBUCKET`
 
---auto-terminate
+To submit the whole thing at once with step and config jsons:
 
-
-3) To package common config, see link for exact configurations
-
-time aws s3 cp --region eu-west-1 myConfig.json s3://dimaspark
-
-
-4) To package step, see see link for exact step configuration
-
-time aws s3 cp --region eu-west-1 myStep.json s3://dimaspark
-
-
-5) To submit the whole thing at once with step and config jsons:
-
-aws emr create-cluster --name Churner --release-label emr-4.3.0 \
-
+```aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 --instance-type m3.xlarge --instance-count 3 --applications Name=Spark \
-
---use-default-roles --ec2-attributes KeyName=EC2_KEY_NAME \
-
---log-uri "s3://dimaspark/logs/" \
-
---steps "s3://dimaspark/myStep.json"
+--use-default-roles --ec2-attributes KeyName=DUMMYKEY \
+--log-uri "s3://DUMMYBUCKET/logs/" \
+--steps "s3://DUMMYBUCKET/myStep.json"```
 
 
 
