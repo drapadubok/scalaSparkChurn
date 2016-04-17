@@ -11,9 +11,10 @@ class AppSpec extends FlatSpec {
     assert(bool2int(false)==0)
   }
 
-  "getDropColumns" should "return indices of columns to drop" in {
-    assert(getDropColumns(Array("1", "2", "3"), Array("2", "3")) sameElements Array(1, 2))
+  "getIdxDropColumns" should "return indices of columns to drop" in {
+    assert(getIdxDropColumns(Array("1", "2", "3"), Array("2", "3")) sameElements Array(1, 2))
   }
+
 }
 
 
