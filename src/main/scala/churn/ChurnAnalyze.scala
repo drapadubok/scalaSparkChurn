@@ -1,48 +1,105 @@
 package churn
 
-import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS
-import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
-import org.apache.spark.mllib.feature.StandardScaler
-/*
-object ChurnAnalyze extends App{
 
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.ml.feature.{StandardScaler, VectorIndexer, VectorAssembler, VectorSlicer}
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.tuning.{ParamGridBuilder, CrossValidator}
+import org.apache.spark.ml.classification.{RandomForestClassificationModel, RandomForestClassifier}
 
-val scaler = new StandardScaler(withMean = true, withStd = true).fit(output.map(_.features))
-val scaledOutput = output.map { case LabeledPoint(label, features) =>
-  LabeledPoint(label, scaler.transform(features))
+object ChurnAnalyze extends App {
+  // Setup local standalone spark, 4 workers I guess?
+  val conf = new SparkConf().setMaster("local[4]").setAppName("ChurnSQL")
+  val sc = new SparkContext(conf)
+  val sqlContext = new SQLContext(sc)
+
+  // doesn't work, loads string instead of vector
+  val df = sqlContext.read
+    .format("com.databricks.spark.csv")
+    .option("header", "true") // Use first line of all files as header
+    .option("inferSchema", "true") // Automatically infer data types
+    .load("s3n://dimaspark/churn_processed_csv")
+
+  // Automagically detect categorical features
+  val featureIndexer = new VectorIndexer()
+    .setInputCol("features")
+    .setOutputCol("indexedFeatures")
+    .setMaxCategories(2)
+    .fit(df)
+  // Report which features were chosen (here correctly 1 and 2)
+  // Put to tests, to make sure it produces expected number of categorical columns
+  val categoricalFeatures: Set[Int] = featureIndexer.categoryMaps.keys.toSet
+  println(s"Chose ${categoricalFeatures.size} categorical features: " +
+    categoricalFeatures.mkString(", "))
+  // Create new column "indexed" with categorical values transformed to indices
+  val indexedData = featureIndexer.transform(df)
+  indexedData.show()
+
+  // Z-score the continuous features
+  val ZScorer = new StandardScaler()
+    .setInputCol("features")
+    .setOutputCol("scaledFeatures")
+    .setWithStd(true)
+    .setWithMean(true)
+    .fit(df)
+  // Normalize each feature to have unit standard deviation.
+  val scaledIndexedData = ZScorer.transform(indexedData)
+  scaledIndexedData.show()
+
+  // I would like to better understand the purpose of DataFrames
+  // Right now it feels like they are for SQL people to do basic data manipulation
+  // They turn any custom processing into a mess.
+  // However ML API is neat and I want to use it.
+  // Hopefully the more I use DataFrames, the easier it will become.
+
+  // Slice out the categorical features
+  val slicerCategorical = new VectorSlicer()
+    .setInputCol("indexedFeatures")
+    .setOutputCol("categoricalFeatures")
+    .setIndices(Array(1,2)) // make sure you know which are categorical
+  val df2 = slicerCategorical.transform(scaledIndexedData)
+
+  // Slice out the numerical features
+  val slicerNumerical = new VectorSlicer()
+    .setInputCol("scaledFeatures")
+    .setOutputCol("numericalFeatures")
+    // I know that there are 17 features
+    // The hardcoded mess below is done to deal with impossibility
+    // to get anything from DataFrame, as Rows contain Any
+    .setIndices(Array(Array(0), (3 to 16).toArray).flatten)
+  val df3 = slicerNumerical.transform(df2)
+
+  // Assemble the dataset together
+  val assembler = new VectorAssembler()
+    .setInputCols(Array("categoricalFeatures", "numericalFeatures"))
+    .setOutputCol("finalFeatures")
+  val finalDF = assembler.transform(df3)
+
+  val model = new LogisticRegression()
+    .setFeaturesCol("finalFeatures")
+    .setLabelCol("label")
+    .setMaxIter(10)
+    .setRegParam(0.3)
+    .setElasticNetParam(0.8)
+
+  //TODO: find how to correctly define input to model, inspect outputs
+  val pipeline = new Pipeline().setStages(Array(featureIndexer, ZScorer, slicerCategorical, slicerNumerical, assembler))
+  val pipeline = new Pipeline().setStages(Array(model))
+  val cv = new CrossValidator()
+    .setEstimator(pipeline)
+    .setNumFolds(5)
+  val m = cv.fit(finalDF)
 }
 
-val cv = scaledOutput.randomSplit(Array(0.7, 0.3))
-val training = cv(0)
-val testing = cv(1)
-
-val model = new LogisticRegressionWithLBFGS().setNumClasses(2).run(training)
-// Compute raw scores on the test set.
-val predictionAndLabels = testing.map { case LabeledPoint(label, features) =>
-  val prediction = model.predict(features)
-  (prediction, label)
-}
 
 
-val accuracy = 1.0 * predictionAndLabels.filter(x => x._1 == x._2).count() / testing.count()
+//val accuracy = 1.0 * predictionAndLabels.filter(x => x._1 == x._2).count() / testing.count()
 
 
-// Get evaluation metrics.
-val metrics = new BinaryClassificationMetrics(predictionAndLabels)
 
-// Precision by threshold
-val precision = metrics.precisionByThreshold
-precision.foreach { case (t, p) =>
-  println(s"Threshold: $t, Precision: $p")
-}
 
-// Recall by threshold
-val recall = metrics.recallByThreshold
-recall.foreach { case (t, r) =>
-  println(s"Threshold: $t, Recall: $r")
-}
 
-// Precision-Recall Curve
-val PRC = metrics.pr
-}
-*/
+
+

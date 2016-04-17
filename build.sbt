@@ -12,7 +12,8 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "1.6.0",
   "org.scalatest" %% "scalatest" % "2.2.6" % "test",
   "org.scalacheck" %% "scalacheck" % "1.11.5" % "test",
-  "org.apache.spark" %% "spark-mllib" % "1.6.0"
+  "org.apache.spark" %% "spark-mllib" % "1.6.0",
+  "com.databricks" % "spark-csv_2.11" % "1.2.0"
 )
 
-initialCommands := "import dmitrysmirnov.eu.churn._"
+initialCommands := "import churn._"

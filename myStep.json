@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "ChurnPrepro",
+    "Type":"spark",
+    "Jar":"command-runner.jar",
+    "Args":
+    [
+      "--deploy-mode", "cluster",
+      "--master", "yarn",
+      "--conf", "spark.yarn.submit.waitAppCompletion=false",
+      "--configurations", "s3://dimaspark/myConfig.json",
+      "--class", "churn.Churn",
+      "s3://dimaspark/churn_2.11-0.1.0-SNAPSHOT.jar",
+    ],
+    "ActionOnFailure": "CONTINUE"
+  }
+]
