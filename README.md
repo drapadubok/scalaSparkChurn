@@ -84,7 +84,8 @@ aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 
 Here the cluster creation is just combined with step.
 
-### 3) Package common configuration to reduce clutter. We put the technicalities to myConfig.json and use it instead of specifying all the info about memory reqs and cores per executor. Also package step into json, together with config. The myStep.json contains all that stuff from --steps parameter.
+### 3) Package common configuration to reduce clutter. 
+We put the technicalities to myConfig.json and use it instead of specifying all the info about memory reqs and cores per executor. Also package step into json, together with config. The myStep.json contains all that stuff from --steps parameter.
 
 `time aws s3 cp --region eu-west-1 myConfig.json DUMMYBUCKET`
 `time aws s3 cp --region eu-west-1 myStep.json DUMMYBUCKET`
