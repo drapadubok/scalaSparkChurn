@@ -73,12 +73,14 @@ You can check the AWS documentation to get better idea what this does, but in ge
 
 ### 2) Create cluster and submit, terminate on finish:
 
-```aws emr create-cluster --name Churner --release-label emr-4.3.0 \
+```
+aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 --instance-type m3.xlarge --instance-count 3 --applications Name=Spark  \
 --use-default-roles --ec2-attributes KeyName=DUMMYKEY \
 --log-uri DUMMYBUCKET \
 --steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,s3://DUMMYBUCKET/myApp.jar]" \
---auto-terminate```
+--auto-terminate
+```
 
 Here the cluster creation is just combined with step.
 
@@ -89,11 +91,13 @@ Here the cluster creation is just combined with step.
 
 To submit the whole thing at once with step and config jsons:
 
-```aws emr create-cluster --name Churner --release-label emr-4.3.0 \
+```
+aws emr create-cluster --name Churner --release-label emr-4.3.0 \
 --instance-type m3.xlarge --instance-count 3 --applications Name=Spark \
 --use-default-roles --ec2-attributes KeyName=DUMMYKEY \
 --log-uri "s3://DUMMYBUCKET/logs/" \
---steps "s3://DUMMYBUCKET/myStep.json"```
+--steps "s3://DUMMYBUCKET/myStep.json"
+```
 
 
 
