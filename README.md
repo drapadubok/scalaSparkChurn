@@ -33,7 +33,9 @@ Assuming you have your AWS account and you have created keypair for one of the r
 
 For example, assuming my bucket is DUMMYBUCKET and name of keypair is DUMMYKEY. When I just started, I thought that KeyName parameter required path to DUMMYKEY.pem, but no, just put the keypair name.
 
-`aws emr create-cluster --name "MyClu" --release-label emr-4.3.0 --log-uri DUMMYBUCKET --instance-type m3.xlarge --instance-count 3 --applications Name=Spark --use-default-roles --ec2-attributes KeyName=DUMMYKEY`
+```
+aws emr create-cluster --name "MyClu" --release-label emr-4.3.0 --log-uri DUMMYBUCKET --instance-type m3.xlarge --instance-count 3 --applications Name=Spark --use-default-roles --ec2-attributes KeyName=DUMMYKEY
+```
 
 As a result you will get cluster id, something like J-12398213, this will be used to identify your cluster.
 
@@ -69,7 +71,9 @@ I've found multiple ways to achieve this, here are a few that worked for me.
 
 ### 1) As a step, assuming cluster is running:
 
-`aws emr add-steps --cluster-id "J-12398213" --steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,s3://DUMMYBUCKET/myApp.jar],ActionOnFailure=CONTINUE"`
+```
+aws emr add-steps --cluster-id "J-12398213" --steps "Type=spark,Name=ChurnPrepro,Args=[--deploy-mode,cluster,--master,yarn,--conf,spark.yarn.submit.waitAppCompletion=false,--num-executors,2,--executor-cores,2,--executor-memory,5g,--class,churn.ChurnData,s3://DUMMYBUCKET/myApp.jar],ActionOnFailure=CONTINUE"
+```
 
 You can check the AWS documentation to get better idea what this does, but in general, you specify what type of step it is (Spark), where is the jar and which class to use, some technical specs for executors (still trying to figure out optimal) and what to do if job fails.
 
